@@ -1,6 +1,7 @@
 import socket
 import json
 import time
+import logging
 from threading import Thread
 from models.user import User
 from models.chat import Chat
@@ -11,11 +12,14 @@ AVAILABLE_PORT = 12345
 chat = Chat()
 
 
+logging.basicConfig(level=logging.INFO, filename="logs.log", filemode="w")
+
 def update_chat(message: str, sender: "User"):
     for user in chat.users:
         if user != sender:
-            print("SEND_MESSAGE")
-            print(f"Sender: {sender.name}, Receiver: {user.name}, Message: {message}")
+            logging.info(
+                f"(SEND_MESSAGE) Sender: {sender.name}, Receiver: {user.name}, Message: {message}"
+            )
             user.connection.sendall(
                 bytes(json.dumps([(sender.name, message)]), "UTF-8")
             )
@@ -28,12 +32,14 @@ def get_message(connection: socket.socket, user):
             continue
         message = bytes.decode(message, "UTF-8")
         if message == "\q":
-            print("CLOSE_CONNECTION")
-            print(f"Connection: {connection}, User name: {user.name}")
+            logging.info(
+                f"(CLOSE_CONNECTION) Connection: {connection}, User name: {user.name}"
+            )
             connection.sendall(b"\q")
             break
-        print("GET_MESSAGE")
-        print(f"Connection: {connection}, User name: {user.name}, Message: {message}")
+        logging.info(
+            f"(GET_MESSAGE) Connection: {connection}, User name: {user.name}, Message: {message}"
+        )
         chat.add_message(message, user.name)
         update_chat(message, user)
         time.sleep(1)
@@ -41,10 +47,12 @@ def get_message(connection: socket.socket, user):
 def start_chat(connection: socket.socket) -> None:
     global chat
     with connection:
-        name = conn.recv(1024)
-        if name:
-            print("START_CHAT")
-            print(f"Connection: {connection}, User name: {name}")
+        data = conn.recv(1024)
+        if data:
+            name = bytes.decode(data, "UTF-8")
+            logging.info(
+                f"(START_CHAT) Connection: {connection}, User name: {name}"
+            )
             user = User(
                 connection=connection,
                 name=bytes.decode(name, "UTF-8"),
@@ -53,8 +61,9 @@ def start_chat(connection: socket.socket) -> None:
             try:
                 get_message(connection, user)
             except Exception as e:
-                print("EXCEPTION")
-                print(f"User name: {name}, Exception: {e}")
+                logging.error(
+                    f"(EXCEPTION) User name: {name}, Exception: {e}"
+                )
             finally:
                 chat.delete_user(user)
 
