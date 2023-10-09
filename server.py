@@ -11,17 +11,14 @@ AVAILABLE_PORT = 12345
 chat = Chat()
 
 
-class Message:
-    message: str
-    last_message: int
-
-def update_chat(connection: socket.socket, user: "User"):
-    send_messages = []
-    for message in chat.messages[(user.last_message + 1):]:
-        if message[0] != user.name:
-            send_messages.append(message)
-    connection.sendall(bytes(json.dumps(send_messages), "UTF-8"))
-    user.last_message = len(chat.messages) - 1
+def update_chat(message: str, sender: "User"):
+    for user in chat.users:
+        if user != sender:
+            print("SEND_MESSAGE")
+            print(f"Sender: {sender.name}, Receiver: {user.name}, Message: {message}")
+            user.connection.sendall(
+                bytes(json.dumps([(sender.name, message)]), "UTF-8")
+            )
 
 
 def get_message(connection: socket.socket, user):
@@ -38,7 +35,7 @@ def get_message(connection: socket.socket, user):
         print("GET_MESSAGE")
         print(f"Connection: {connection}, User name: {user.name}, Message: {message}")
         chat.add_message(message, user.name)
-        update_chat(connection, user)
+        update_chat(message, user)
         time.sleep(1)
 
 def start_chat(connection: socket.socket) -> None:
@@ -51,14 +48,13 @@ def start_chat(connection: socket.socket) -> None:
             user = User(
                 connection=connection,
                 name=bytes.decode(name, "UTF-8"),
-                last_message=len(chat.messages) - 1
             )
             chat.add_user(user)
             try:
                 get_message(connection, user)
             except Exception as e:
                 print("EXCEPTION")
-                print(f"User name: {name}")
+                print(f"User name: {name}, Exception: {e}")
             finally:
                 chat.delete_user(user)
 
