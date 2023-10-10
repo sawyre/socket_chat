@@ -6,13 +6,17 @@ from threading import Thread
 from models.user import User
 from models.chat import Chat
 
-
+# Server settings
 HOST = "127.0.0.1"
 AVAILABLE_PORT = 12345
+
+# Logger settings
+logging.basicConfig(level=logging.INFO, filename="logs.log", filemode="w")
+
+# Global variables
 chat = Chat()
 
 
-logging.basicConfig(level=logging.INFO, filename="logs.log", filemode="w")
 
 def update_chat(message: str, sender: "User"):
     for user in chat.users:
@@ -55,7 +59,7 @@ def start_chat(connection: socket.socket) -> None:
             )
             user = User(
                 connection=connection,
-                name=bytes.decode(name, "UTF-8"),
+                name=name,
             )
             chat.add_user(user)
             try:

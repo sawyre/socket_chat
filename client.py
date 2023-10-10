@@ -2,18 +2,23 @@ import socket
 import time
 import json
 from threading import Thread
+from typing import TextIO
 
 
-CHAT_FILE = "chat.txt"
+# Host address
 HOST = "127.0.0.1"
 PORT = 12345
-LOGIN = ""
-# TODO: Add fine logs
+
+# Client settings
+CHAT_FILE = "chat.txt"
+
+# Global variables
+login = ""
 
 
-def send_messages(conn: socket.socket, file) -> None:
+def send_messages(conn: socket.socket, file: TextIO) -> None:
     while True:
-        inp = input(LOGIN + ": ")
+        inp = input(f"{login} : ")
         if inp == "\q":
             conn.sendall(bytes(inp, "UTF-8"))
             print("Send closing connection")
@@ -22,11 +27,11 @@ def send_messages(conn: socket.socket, file) -> None:
             break
         if inp:
             conn.sendall(bytes(inp, "UTF-8"))
-            file.write(f"{LOGIN}: {inp}\n")
+            file.write(f"{login}: {inp}\n")
             file.flush()
         time.sleep(1)
 
-def get_messages(conn: socket.socket, file) -> None:
+def get_messages(conn: socket.socket, file: TextIO) -> None:
     while True:
         data = conn.recv(1024)
         if data:
@@ -35,8 +40,8 @@ def get_messages(conn: socket.socket, file) -> None:
                 file.flush()
                 break
             messages = json.loads(data)
-            for message in messages:
-                file.write(f"{message[0]}: {message[1]}\n")
+            for author, message in messages:
+                file.write(f"{author}: {message}\n")
                 file.flush()
 
 
@@ -46,18 +51,18 @@ if __name__ == "__main__":
         s.connect((HOST, PORT))
 
         print("Enter login: ", end="")
-        LOGIN = input()
-        if LOGIN:
-            s.sendall(bytes(LOGIN, "UTF-8"))
-        file = open(LOGIN + CHAT_FILE, "w+")
+        login = input()
+        if login:
+            s.sendall(bytes(login, "UTF-8"))
+        file = open(login + CHAT_FILE, "w+")
         file.write("You entered in chat.\n")
         file.flush()
 
         input_thread = Thread(target=send_messages, args=[s, file])
-        output_thread = Thread(target=get_messages, args=[s, file])
         input_thread.start()
-        output_thread.start()
+
+        get_messages(s, file)
         input_thread.join()
-        output_thread.join()
+
         file.close()
     print("End program")

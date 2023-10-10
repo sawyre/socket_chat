@@ -1,12 +1,13 @@
-import typing as t
 import socket
+from typing import TYPE_CHECKING
 
-if t.TYPE_CHECKING:
+if TYPE_CHECKING:
     import socket
 
 class User:
-    name: t.Optional[str]
+    name: str
     connection: socket.socket
+
     def __eq__(self, other):
         return self.name == other.name
 
