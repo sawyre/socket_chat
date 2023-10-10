@@ -1,5 +1,4 @@
 import socket
-import time
 import json
 from threading import Thread
 from typing import TextIO
@@ -16,34 +15,36 @@ CHAT_FILE = "chat.txt"
 login = ""
 
 
-def send_messages(conn: socket.socket, file: TextIO) -> None:
+def send_messages(conn: socket.socket, chat_file: TextIO) -> None:
     while True:
         inp = input(f"{login} : ")
         if inp == "\q":
             conn.sendall(bytes(inp, "UTF-8"))
             print("Send closing connection")
-            file.write(f"Send closing connection\n")
-            file.flush()
+            chat_file.write(f"Send closing connection\n")
+            chat_file.flush()
             break
         if inp:
             conn.sendall(bytes(inp, "UTF-8"))
-            file.write(f"{login}: {inp}\n")
-            file.flush()
-        time.sleep(1)
+            chat_file.write(f"{login}: {inp}\n")
+            chat_file.flush()
 
-def get_messages(conn: socket.socket, file: TextIO) -> None:
+def get_messages(conn: socket.socket, chat_file: TextIO) -> None:
     while True:
         data = conn.recv(1024)
-        if data:
-            if data == b"\q":
-                file.write(f"Close connection\n")
-                file.flush()
-                break
-            messages = json.loads(data)
-            for author, message in messages:
-                file.write(f"{author}: {message}\n")
-                file.flush()
 
+        if data:
+            # Check for disconnect message
+            if data == b"\q":
+                chat_file.write(f"Close connection\n")
+                chat_file.flush()
+                break
+
+            # TODO: Add error checking
+            # TODO: Add showing messages in terminal
+            author, message = json.loads(data)
+            chat_file.write(f"{author}: {message}\n")
+            chat_file.flush()
 
 
 if __name__ == "__main__":

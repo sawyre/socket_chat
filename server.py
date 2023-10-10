@@ -19,17 +19,23 @@ chat = Chat()
 
 
 def update_chat(message: str, sender: "User"):
+    """
+    Send new message in all users chats
+    """
     for user in chat.users:
         if user != sender:
             logging.info(
                 f"(SEND_MESSAGE) Sender: {sender.name}, Receiver: {user.name}, Message: {message}"
             )
             user.connection.sendall(
-                bytes(json.dumps([(sender.name, message)]), "UTF-8")
+                bytes(json.dumps((sender.name, message)), "UTF-8")
             )
 
 
 def get_message(connection: socket.socket, user):
+    """
+    Wait user messages, add it in list and update all other user chats
+    """
     while True:
         message = connection.recv(1024)
         if not message:
@@ -48,7 +54,10 @@ def get_message(connection: socket.socket, user):
         update_chat(message, user)
         time.sleep(1)
 
-def start_chat(connection: socket.socket) -> None:
+def run_chat(connection: socket.socket) -> None:
+    """
+    Create chat user, run function of waiting his messages and delete user after disconnection
+    """
     global chat
     with connection:
         data = conn.recv(1024)
@@ -65,7 +74,7 @@ def start_chat(connection: socket.socket) -> None:
             try:
                 get_message(connection, user)
             except Exception as e:
-                logging.error(
+                logging.exception(
                     f"(EXCEPTION) User name: {name}, Exception: {e}"
                 )
             finally:
@@ -78,5 +87,5 @@ if __name__ == "__main__":
         s.listen()
         while True:
             conn, _ = s.accept()
-            thread = Thread(target=start_chat, args=(conn,))
+            thread = Thread(target=run_chat, args=(conn,))
             thread.start()
