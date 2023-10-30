@@ -1,5 +1,6 @@
 import socket
 import json
+import logging
 from threading import Thread
 from typing import TextIO
 
@@ -14,10 +15,13 @@ CHAT_FILE = "chat.txt"
 # Global variables
 login = ""
 
+logging.basicConfig(format=f"%(message)s", level=logging.INFO)
+
 
 def send_messages(conn: socket.socket, chat_file: TextIO) -> None:
     while True:
-        inp = input(f"{login} : ")
+        inp = input()
+        # "\q" - is close connection message
         if inp == "\q":
             conn.sendall(bytes(inp, "UTF-8"))
             print("Send closing connection")
@@ -29,22 +33,25 @@ def send_messages(conn: socket.socket, chat_file: TextIO) -> None:
             chat_file.write(f"{login}: {inp}\n")
             chat_file.flush()
 
+
 def get_messages(conn: socket.socket, chat_file: TextIO) -> None:
     while True:
-        data = conn.recv(1024)
+        raw_data = conn.recv(1024)
 
-        if data:
+        if raw_data:
             # Check for disconnect message
-            if data == b"\q":
+            if raw_data == b"\q":
                 chat_file.write(f"Close connection\n")
                 chat_file.flush()
                 break
-
-            # TODO: Add error checking
-            # TODO: Add showing messages in terminal
-            author, message = json.loads(data)
-            chat_file.write(f"{author}: {message}\n")
-            chat_file.flush()
+            data = json.loads(raw_data)
+            # Checking that the message has the expected structure
+            if "data" in data:
+                logging.info(f"{data['data']['author']}:{data['data']['message']}")
+                chat_file.write(f"{data['data']['author']}:{data['data']['message']}")
+                chat_file.flush()
+            else:
+                logging.info(f"Received something: {data}")
 
 
 if __name__ == "__main__":

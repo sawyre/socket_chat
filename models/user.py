@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import socket
 
+
 class User:
     name: str
     connection: socket.socket

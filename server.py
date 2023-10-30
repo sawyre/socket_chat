@@ -1,6 +1,5 @@
 import socket
 import json
-import time
 import logging
 from threading import Thread
 from models.user import User
@@ -17,30 +16,47 @@ logging.basicConfig(level=logging.INFO, filename="logs.log", filemode="w")
 chat = Chat()
 
 
+class SendMessageScheme:
+    """
+    Structure for send message
+    """
 
-def update_chat(message: str, sender: "User"):
+    @staticmethod
+    def create_message(user: User, message: str) -> str:
+        dict_message = {"data": {"author": user.name, "message": message}}
+        return json.dumps(dict_message)
+
+
+def update_chat(message: str, sender: "User") -> None:
     """
     Send new message in all users chats
     """
+    deleted_users = set()
     for user in chat.users:
         if user != sender:
             logging.info(
                 f"(SEND_MESSAGE) Sender: {sender.name}, Receiver: {user.name}, Message: {message}"
             )
-            user.connection.sendall(
-                bytes(json.dumps((sender.name, message)), "UTF-8")
-            )
+            try:
+                user.connection.sendall(
+                    bytes(SendMessageScheme.create_message(sender, message), "UTF-8")
+                )
+            except Exception as e:
+                # for users who unexpectedly disconnected
+                logging.exception(f"(EXCEPTION) User name: {user.name}, Exception: {e}")
+                deleted_users.add(user)
+    chat.users.difference_update(deleted_users)
 
 
-def get_message(connection: socket.socket, user):
+def get_message(connection: socket.socket, user) -> None:
     """
     Wait user messages, add it in list and update all other user chats
     """
     while True:
-        message = connection.recv(1024)
-        if not message:
+        raw_message = connection.recv(1024)
+        if not raw_message:
             continue
-        message = bytes.decode(message, "UTF-8")
+        message = bytes.decode(raw_message, "UTF-8")
         if message == "\q":
             logging.info(
                 f"(CLOSE_CONNECTION) Connection: {connection}, User name: {user.name}"
@@ -52,7 +68,7 @@ def get_message(connection: socket.socket, user):
         )
         chat.add_message(message, user.name)
         update_chat(message, user)
-        time.sleep(1)
+
 
 def run_chat(connection: socket.socket) -> None:
     """
@@ -63,20 +79,13 @@ def run_chat(connection: socket.socket) -> None:
         data = conn.recv(1024)
         if data:
             name = bytes.decode(data, "UTF-8")
-            logging.info(
-                f"(START_CHAT) Connection: {connection}, User name: {name}"
-            )
-            user = User(
-                connection=connection,
-                name=name,
-            )
+            logging.info(f"(START_CHAT) Connection: {connection}, User name: {name}")
+            user = User(connection=connection, name=name)
             chat.add_user(user)
             try:
                 get_message(connection, user)
             except Exception as e:
-                logging.exception(
-                    f"(EXCEPTION) User name: {name}, Exception: {e}"
-                )
+                logging.exception(f"(EXCEPTION) User name: {name}, Exception: {e}")
             finally:
                 chat.delete_user(user)
 
